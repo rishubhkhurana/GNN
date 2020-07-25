@@ -141,7 +141,7 @@ class TrainRecorderCallBack:
                     self.metrics[mode+'_'+m.__name__].append(self.self.epoch_measures[mode+'_'+m.__name__]/self.epoch_measures[mode+'_count'])
                 else:
                     self.metrics[mode+'_'+m.__name__].append(m(self.epoch_measures[mode+'_preds'],self.epoch_measures[mode+'_groundtruths']))
-        runner.prints = f"Epoch[{runner.epoch}]--> Training Loss:{self.losses["train_loss"]}, Validation Loss:{self.losses["valid_loss"]}"
+        runner.prints = f"Epoch[{runner.epoch}]--> Training Loss:{self.losses['train_loss']}, Validation Loss:{self.losses['valid_loss']}"
 
 class PrintStatsCallBack:
     _order = 2
@@ -169,7 +169,9 @@ class PreProcessingCallBack:
                 temp.append(getattr(runner.batch,y).cuda())
             runner.yb = temp            
 
-
+class EarlyStoppingCallBack:
+    def __init__(self,patience):
+        pass
 
 def one_batch_simple(model,X,batch_node_idxs,target,edge_index,loss_func,opt,is_train=False):
     # moving to gpu
@@ -209,7 +211,7 @@ def test_simple(model,X,edge_index,y,dls,loss_func,opt,key='valid'):
     return {'EpochLosses':batch_losses,'EpochAccuracies':batch_accuracies}
 
 
-def run(trainpacket,epochs=NUM_EPOCHS):
+def run(trainpacket,epochs=10):
     ## running training followed by validation
     all_training_losses=[]
     all_validation_losses=[]
@@ -230,3 +232,5 @@ def run(trainpacket,epochs=NUM_EPOCHS):
     gc.collect()
     torch.cuda.empty_cache()
     return {'TrainingLosses':all_training_losses,'TrainingAccuracy':all_training_accuracies,'validationLosses':all_validation_losses,'ValidationAccuracy':all_validation_accuracies}
+
+
