@@ -11,7 +11,7 @@ class CallBackHandler:
     def __init__(self,cbs):
         self.cbs = cbs
     def __call__(self,name,runner):
-        for c in sorted(self.cbs,key=cbs._order):
+        for c in sorted(self.cbs,key=self.cbs._order):
             f = getattr(c,name)
             if f is not None:
                 f(runner)
