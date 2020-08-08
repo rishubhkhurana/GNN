@@ -25,5 +25,5 @@ class DGLNodeLoader:
             idxs = torch.arange(N)
         for idx in range(0,N,self.batch_size):
             sampled_idxs = self.node_idxs[idxs[idx:(idx+self.batch_size)]]
-            yield Batch(graph=self.graph,features=self.graph.ndata['feat'],
+            yield DGLBatch(graph=self.graph,features=self.graph.ndata['feat'],
                         node_idxs=sampled_idxs,yb=self.graph.ndata['labels'])
