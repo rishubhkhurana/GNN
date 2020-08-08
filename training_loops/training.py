@@ -1,5 +1,10 @@
 from .regimports import *
-
+from fastprogress import master_bar,progress_bar
+import pdb
+class CancelTrainException(Exception):
+    pass
+class CancelBatchException(Exception):
+    pass
 class TrainPacket:
     def __init__(self,model,opt,loss_func,dls):
         self.model = model
@@ -11,8 +16,8 @@ class CallBackHandler:
     def __init__(self,cbs):
         self.cbs = cbs
     def __call__(self,name,runner):
-        for c in sorted(self.cbs,key=self.cbs._order):
-            f = getattr(c,name)
+        for c in sorted(self.cbs,key=lambda x: x._order):
+            f = getattr(c,name,None)
             if f is not None:
                 f(runner)
 
@@ -31,18 +36,21 @@ class Runner:
         return self.trainpacket.loss_func
     @property
     def dls(self):
-        return dls
+        return self.trainpacket.dls
     
-    def one_batch(self):
+    def one_batch(self,batch):
         try:
+            pdb.set_trace()
+            self.batch = batch
             self('begin_batch')
             self.preds = self.model(*self.xb)
             self('after_preds')
             if self.mask is not None:
                 self.preds = self.preds[self.mask]
+                self.yb = self.yb[self.mask]
             self.loss = self.loss_func(self.preds,self.yb)
             if self.in_train:
-                loss.backward()
+                self.loss.backward()
                 self('after_backward')
                 self.opt.step()
                 self('after_step')
@@ -62,7 +70,7 @@ class Runner:
             self('begin_fit')
             mb = master_bar(range(epochs),total=epochs)
             for epoch in mb:
-                runner.epoch=epoch
+                self.epoch=epoch
                 self('begin_epoch')
                 self.in_train=True
                 self.model.train()
@@ -88,6 +96,9 @@ class CleanerCallBack:
         del runner.batch,runner.yb.runner.xb,runner.mask,runner.loss,runner.preds
         gc.collect()
         torch.cuda.empty_cache()
+    
+    def __repr__(self):
+        return self.__class__.__name__
 
 
 class TrainRecorderCallBack:
@@ -142,11 +153,18 @@ class TrainRecorderCallBack:
                 else:
                     self.metrics[mode+'_'+m.__name__].append(m(self.epoch_measures[mode+'_preds'],self.epoch_measures[mode+'_groundtruths']))
         runner.prints = f"Epoch[{runner.epoch}]--> Training Loss:{self.losses['train_loss']}, Validation Loss:{self.losses['valid_loss']}"
+        
+    def __repr__(self):
+        return self.__class__.__name__
 
 class PrintStatsCallBack:
     _order = 2
     def after_epoch(self,runner):
         runner.mb.write(runner.prints)
+    
+        
+    def __repr__(self):
+        return self.__class__.__name__
 
 class PreProcessingCallBack:
     _order=0
@@ -156,7 +174,10 @@ class PreProcessingCallBack:
     def begin_batch(self,runner):
         temp=[]
         for x in self.xnames:
-            temp.append(getattr(runner.batch,x).cuda())
+            if x=='graph':
+                temp.append(getattr(runner.batch,x))
+            else:
+                temp.append(getattr(runner.batch,x).cuda())
         runner.xb = temp
         mask = getattr(runner.batch,self.mask_name)
         if mask is not None:
@@ -167,11 +188,17 @@ class PreProcessingCallBack:
             temp=[]
             for x in self.ynames:
                 temp.append(getattr(runner.batch,y).cuda())
-            runner.yb = temp            
+            runner.yb = temp        
+        
+    def __repr__(self):
+        return self.__class__.__name__    
 
 class EarlyStoppingCallBack:
     def __init__(self,patience):
         pass
+        
+    def __repr__(self):
+        return self.__class__.__name__
 
 def one_batch_simple(model,X,batch_node_idxs,target,edge_index,loss_func,opt,is_train=False):
     # moving to gpu
