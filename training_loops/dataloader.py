@@ -1,6 +1,6 @@
 from .regimports import *
 
-class DGLNodeBatch:
+class DGLBatch:
     def __init__(self,graph=None,node_idxs=None,features=None,yb=None):
         self.graph = graph
         self.features = features
