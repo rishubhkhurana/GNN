@@ -40,7 +40,6 @@ class Runner:
     
     def one_batch(self,batch):
         try:
-            pdb.set_trace()
             self.batch = batch
             self('begin_batch')
             self.preds = self.model(*self.xb)
@@ -68,20 +67,21 @@ class Runner:
     def fit(self,epochs=100):
         try:
             self('begin_fit')
-            mb = master_bar(range(epochs),total=epochs)
-            for epoch in mb:
+            self.mb = master_bar(range(epochs),total=epochs)
+            for epoch in self.mb:
                 self.epoch=epoch
                 self('begin_epoch')
                 self.in_train=True
                 self.model.train()
-                self.all_batches(self.dls['train'],parent=mb)
+                self.all_batches(self.dls['train'],parent=self.mb)
                 self('after_training')
                 self.in_train=False
                 self('before_validation')
                 self.model.eval()
                 with torch.no_grad():
-                    self.all_batches(self.dls['valid'],parent=mb)
+                    self.all_batches(self.dls['valid'],parent=self.mb)
                 self('after_validation')
+                self('after_epoch')
         except CancelTrainException as e:
             print(repr(e))
         finally:
@@ -96,7 +96,6 @@ class CleanerCallBack:
         del runner.batch,runner.yb.runner.xb,runner.mask,runner.loss,runner.preds
         gc.collect()
         torch.cuda.empty_cache()
-    
     def __repr__(self):
         return self.__class__.__name__
 
@@ -116,7 +115,7 @@ class TrainRecorderCallBack:
         self.metrics = {}
         for m in self.metric_funcs:
             for mode in ['train','valid']:
-                self.metrics[mode+'_'+m.__name__]=[]
+                self.metrics[mode+'_'+m.__class__.__name__]=[]
 
     def begin_epoch(self,runner):
         self.epoch_measures=dict(train_count=0,valid_count=0,train_loss=0,\
@@ -124,9 +123,8 @@ class TrainRecorderCallBack:
                 valid_groundtruths=[],test_groundtruths=[])
         for m,summable in zip(self.metric_funcs,self.summables):
             if summable:
-                self.epoch_measures['train'+'_'+m.__name__]=0
-                self.epoch_measures['valid'+'_'+m.__name__]=0
-
+                self.epoch_measures['train'+'_'+m.__class__.__name__]=0
+                self.epoch_measures['valid'+'_'+m.__class__.__name__]=0
 
     def after_batch(self,runner):
         if runner.in_train:
@@ -138,7 +136,7 @@ class TrainRecorderCallBack:
         self.epoch_measures[mode+'_loss']+=runner.loss.item()*runner.yb.shape[0]
         for m,summable in zip(self.metric_funcs,self.summables):
             if summable:
-                self.epoch_measures[mode+'_'+m.__name__]+=m(runner.preds.detach().cpu().numpy(),runner.yb.detach().cpu().numpy())*runner.yb.shape[0]
+                self.epoch_measures[mode+'_'+m.__class__.__name__]+=m(runner.preds.detach().cpu().numpy(),runner.yb.detach().cpu().numpy())*runner.yb.shape[0]
         if all(self.summables):
             return
         self.epoch_measures[mode+'_preds'].append(runner.preds.detach().cpu().numpy())
@@ -146,14 +144,20 @@ class TrainRecorderCallBack:
 
     def after_epoch(self,runner):
         for mode in ['train','valid']:
-            self.losses[mode+'_epoch']=self.epoch_measures[mode+'_loss']/self.epoch_measures[mode+'_count']
-            for m,summable in zip(self.metric_funcs,self.summable):
+            self.losses[mode+'_epoch'].append(self.epoch_measures[mode+'_loss']/self.epoch_measures[mode+'_count'])
+            for m,summable in zip(self.metric_funcs,self.summables):
                 if summable:
-                    self.metrics[mode+'_'+m.__name__].append(self.self.epoch_measures[mode+'_'+m.__name__]/self.epoch_measures[mode+'_count'])
+                    self.metrics[mode+'_'+m.__class__.__name__].append(self.epoch_measures[mode+'_'+m.__class__.__name__]/self.epoch_measures[mode+'_count'])
                 else:
-                    self.metrics[mode+'_'+m.__name__].append(m(self.epoch_measures[mode+'_preds'],self.epoch_measures[mode+'_groundtruths']))
-        runner.prints = f"Epoch[{runner.epoch}]--> Training Loss:{self.losses['train_loss']}, Validation Loss:{self.losses['valid_loss']}"
-        
+                    self.metrics[mode+'_'+m.__class__.__name__].append(m(self.epoch_measures[mode+'_preds'],self.epoch_measures[mode+'_groundtruths']))
+        train_content=f"Loss:{self.losses['train_epoch']:.4f} "
+        valid_content=f"Loss:{self.losses['valid_epoch']:.4f} "
+        for m in self.metric_funcs:
+            train_content+=f'{m.__class__.__name__}: {self.metrics["train"+"_"+m.__class__.__name__][-1]:.4f}'
+            valid_content+=f'{m.__class__.__name__}: {self.metrics["valid"+"_"+m.__class__.__name__][-1]:.4f}'
+        runner.prints = f"Epoch[{runner.epoch}]: Training Stats--> Loss:{self.losses['train_epoch']:.4f} {train_contents}"
+        runner.prints+=f"Validation Stats--> Loss:{self.losses['valid_epoch']:.4f} {valid_contents}""
+
     def __repr__(self):
         return self.__class__.__name__
 
@@ -161,8 +165,6 @@ class PrintStatsCallBack:
     _order = 2
     def after_epoch(self,runner):
         runner.mb.write(runner.prints)
-    
-        
     def __repr__(self):
         return self.__class__.__name__
 
