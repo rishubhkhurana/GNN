@@ -155,8 +155,8 @@ class TrainRecorderCallBack:
         for m in self.metric_funcs:
             train_content+=f'{m.__class__.__name__}: {self.metrics["train"+"_"+m.__class__.__name__][-1]:.4f}'
             valid_content+=f'{m.__class__.__name__}: {self.metrics["valid"+"_"+m.__class__.__name__][-1]:.4f}'
-        runner.prints = f"Epoch[{runner.epoch}]: Training Stats--> Loss:{self.losses['train_epoch']:.4f} {train_contents}"
-        runner.prints+=f"Validation Stats--> Loss:{self.losses['valid_epoch']:.4f} {valid_contents}""
+        runner.prints = f"Epoch[{runner.epoch}]: Training Stats--> Loss:{self.losses['train_epoch']:.4f} {train_content}"
+        runner.prints+=f"Validation Stats--> Loss:{self.losses['valid_epoch']:.4f} {valid_content}"
 
     def __repr__(self):
         return self.__class__.__name__
