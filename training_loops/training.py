@@ -150,13 +150,13 @@ class TrainRecorderCallBack:
                     self.metrics[mode+'_'+m.__class__.__name__].append(self.epoch_measures[mode+'_'+m.__class__.__name__]/self.epoch_measures[mode+'_count'])
                 else:
                     self.metrics[mode+'_'+m.__class__.__name__].append(m(self.epoch_measures[mode+'_preds'],self.epoch_measures[mode+'_groundtruths']))
-        train_content=f"Loss:{self.losses['train_epoch']:.4f} "
-        valid_content=f"Loss:{self.losses['valid_epoch']:.4f} "
+        train_content=f"Loss:{self.losses['train_epoch'][-1]:.4f} "
+        valid_content=f"Loss:{self.losses['valid_epoch'][-1]:.4f} "
         for m in self.metric_funcs:
             train_content+=f'{m.__class__.__name__}: {self.metrics["train"+"_"+m.__class__.__name__][-1]:.4f}'
             valid_content+=f'{m.__class__.__name__}: {self.metrics["valid"+"_"+m.__class__.__name__][-1]:.4f}'
-        runner.prints = f"Epoch[{runner.epoch}]: Training Stats--> Loss:{self.losses['train_epoch']:.4f} {train_content}"
-        runner.prints+=f"Validation Stats--> Loss:{self.losses['valid_epoch']:.4f} {valid_content}"
+        runner.prints = f"Epoch[{runner.epoch}]: Training Stats--> Loss:{self.losses['train_epoch'][-1]:.4f} {train_content}"
+        runner.prints+=f"Validation Stats--> Loss:{self.losses['valid_epoch'][-1]:.4f} {valid_content}"
 
     def __repr__(self):
         return self.__class__.__name__
