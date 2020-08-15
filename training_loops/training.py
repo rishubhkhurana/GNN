@@ -163,8 +163,11 @@ class TrainRecorderCallBack:
 
 class PrintStatsCallBack:
     _order = 2
+    def __init__(self,freq=10):
+        self.freq=freq
     def after_epoch(self,runner):
-        runner.mb.write(runner.prints)
+        if runner.epoch%self.freq==0:
+            runner.mb.write(runner.prints)
     def __repr__(self):
         return self.__class__.__name__
 
